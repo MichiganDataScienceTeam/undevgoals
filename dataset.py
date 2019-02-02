@@ -1,6 +1,8 @@
 import pandas as pd
 import os.path
 
+import evaluation
+
 _DATA_DIR = './data/'
 _TRAINING_SET_FN = 'TrainingSet.csv'
 _SUBMISSION_ROWS_FN = 'SubmissionRows.csv'
@@ -49,6 +51,12 @@ class UNDevGoalsDataset():
         X = X.iloc[:, :-1]  # 1972:2006
 
         return X, Y
+
+    def evaluate(self, predictions):
+        """Check RMSE of predictions"""
+        _, Y = self.preprocess_simple()
+
+        return evaluation.RMSE(predictions, Y)
 
 
 if __name__=='__main__':
