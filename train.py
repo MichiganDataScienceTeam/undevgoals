@@ -1,5 +1,5 @@
 import dataset
-from models import status_quo_model
+from models import status_quo_model, arima
 
 def main():
 
@@ -12,7 +12,10 @@ def main():
     status_quo_preds = status_quo_model(X)
     status_quo_rmse = data.evaluate(status_quo_preds)
     print('Status quo model RMSE:', status_quo_rmse)
-
+    
+    arima_preds = arima(X)
+    arima_rmse = data.evaluate(arima_preds)
+    print('ARIMA model RMSE:', arima_rmse)
 
 if __name__ == '__main__':
     main()
