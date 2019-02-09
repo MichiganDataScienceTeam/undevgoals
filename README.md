@@ -3,7 +3,22 @@ United Nations Millennium Development Goals Competition: https://www.drivendata.
 
 ## Setup
 
-Place data in `./data/`. There should be two files:
+1. Install `conda` if you haven't already.
 
-1. TrainingSet.csv
-2. SubmissionRows.csv
+2. Create a new `conda` environment with the correct dependencies:
+
+```
+conda env create -f environment.yml
+source activate undg
+```
+
+3. Place data in `./data/`. There should be two files:
+
+ - TrainingSet.csv
+ - SubmissionRows.csv
+
+4. Run the training code
+
+```
+python train.py
+```
