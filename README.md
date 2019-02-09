@@ -3,13 +3,18 @@ United Nations Millennium Development Goals Competition: https://www.drivendata.
 
 ## Setup
 
-1. Install `conda` if you haven't already.
-
-2. Create a new `conda` environment with the correct dependencies:
+1. Install `virtualenv` if you haven't already.
 
 ```
-conda env create -f environment.yml
-source activate undg
+pip install --upgrade virtualenv
+```
+
+2. Create a new `virtualenv` with the correct dependencies:
+
+```
+virtualenv undg -p python3
+source undg/bin/activate
+pip install -r requirements.txt
 ```
 
 3. Place data in `./data/`. There should be two files:
