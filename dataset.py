@@ -22,6 +22,7 @@ class UNDevGoalsDataset():
         self._train = pd.read_csv(training_set_fn, index_col=0)
         self._submit_rows = pd.read_csv(submission_rows_fn, index_col=0)
 
+
     def preprocess_simple(self):
         """Preprocess the data for preliminary model building.
 
@@ -51,6 +52,27 @@ class UNDevGoalsDataset():
         X = X.iloc[:, :-1]  # 1972:2006
 
         return X, Y
+
+
+    def preprocess_for_viz(self):
+        """Preprocess the data for visualization.
+
+        Selects rows for prediction and renames columns.
+        """
+
+        # Select rows for prediction only
+        X = self._train.loc[self._submit_rows.index]
+
+        # Select and rename columns
+        yrs = X.iloc[:, :-3]
+        names = X.iloc[:, -3:]
+        yrs = yrs.rename(lambda x: int(x.split(' ')[0]), axis=1)
+
+        df = pd.concat([yrs, names], axis=1)
+        gb = df.groupby('Series Name')
+
+        return gb
+
 
     def evaluate(self, predictions):
         """Check RMSE of predictions"""

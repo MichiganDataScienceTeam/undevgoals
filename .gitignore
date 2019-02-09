@@ -108,3 +108,6 @@ data/*.csv
 
 # virtualenv
 undg/
+
+# Plots
+plots/*
