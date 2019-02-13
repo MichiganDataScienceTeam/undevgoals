@@ -1,5 +1,5 @@
 import pandas as pd
-import numpy
+import numpy as np
 import statsmodels as sm
 from statsmodels.tsa.stattools import MissingDataError
 import warnings
@@ -45,6 +45,6 @@ def arima(X):
                     forecasts.append(sq_preds.loc[index])
                 else: 
                     forecasts.append(results.forecast()[0][0])
-            except (ValueError, numpy.linalg.linalg.LinAlgError, MissingDataError) as e:
+            except (ValueError, np.linalg.linalg.LinAlgError, MissingDataError) as e:
                     forecasts.append(sq_preds.loc[index])
     return(forecasts)
