@@ -19,8 +19,12 @@ def status_quo_model(X):
 
     return preds
 
-def arima(X):
-    """Predict the most recent value using ARIMA(1,1,1) model.
+def arima(X, order = (1,1,1), lookback = 5):
+    """Predict the most recent value using an ARIMA model.
+
+    By default, will fit ARIMA(1,1,1) for each row by using
+
+    the 5 most recent years of the time series.
 
     If any issues fitting time series model, use status_quo."""
     
@@ -34,11 +38,11 @@ def arima(X):
             row_interp = row.interpolate(
                 method = 'linear', limit = 50,
                 limit_direction = 'backward')
-            # fit ARIMA model on 5 most recent years data
-            # since so much missing data exists, it is not
+            # Fit ARIMA model on `lookback` most recent years data.
+            # Since so much missing data exists, it is not
             # clear that including more years of interpolated
             # data is helping in terms of RMSE
-            model = sm.tsa.arima_model.ARIMA(row_interp.tolist()[-5:], order=(1,1,1))
+            model = sm.tsa.arima_model.ARIMA(row_interp.tolist()[-lookback:], order=order)
             try:
                 results = model.fit(disp = 0)
                 if pd.isnull(results.forecast()[0][0]) or np.abs(results.forecast()[0][0])>2:
