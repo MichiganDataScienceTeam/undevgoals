@@ -1,7 +1,9 @@
 import pandas as pd
-from statsmodels.tsa.arima_model import ARIMA
+import numpy as np
+import statsmodels as sm
+from statsmodels.tsa.stattools import MissingDataError
 import warnings
-import numpy
+
 def status_quo_model(X):
     """Predict the most recent value of each series.
 
@@ -17,34 +19,36 @@ def status_quo_model(X):
 
     return preds
 
-def arima(X):
-    """Predict the most recent value using ARIMA(2,1,0) model.
+def arima(X, order = (1,1,1), lookback = 5):
+    """Predict the most recent value using an ARIMA model.
+
+    By default, will fit ARIMA(1,1,1) for each row by using
+
+    the 5 most recent years of the time series.
 
     If any issues fitting time series model, use status_quo."""
     
     sq_preds = status_quo_model(X)
-    X["id"] = X.index
-    # get it to long form
-    longX = pd.melt(X, id_vars=['id'], value_vars=list(X.columns.values)[:-1])
-    # change the default column name to a proper one
-    longX['year'] = longX['variable']
-    longX.drop(columns = 'variable', inplace=True)
-    # sort by id and year so that we can fit individual time series models for each indicator
-    longX = longX.sort_values(['id', 'year'])
-    # group
-    grouped = longX.groupby('id')['value']
-    # for each group (a country-indicator combination)
     forecasts = list()
+    # lots of warnings about convergence. can ignore for now.
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
-        for k, g in grouped:
-            g = g[-5:]
-            gi = g.interpolate(method = 'linear', limit = 50, limit_direction = 'backward')
-            model = ARIMA(gi, order=(2,1,0))
+        for index, row in X.iterrows():
+            # fill in gaps
+            row_interp = row.interpolate(
+                method = 'linear', limit = 50,
+                limit_direction = 'backward')
+            # Fit ARIMA model on `lookback` most recent years data.
+            # Since so much missing data exists, it is not
+            # clear that including more years of interpolated
+            # data is helping in terms of RMSE
+            model = sm.tsa.arima_model.ARIMA(row_interp.tolist()[-lookback:], order=order)
             try:
                 results = model.fit(disp = 0)
-                forecasts.append(results.forecast()[0][0])
-            except (ValueError, numpy.linalg.linalg.LinAlgError) as e:
-                forecasts.append(sq_preds[k])
-        return forecasts
-
+                if pd.isnull(results.forecast()[0][0]) or np.abs(results.forecast()[0][0])>2:
+                    forecasts.append(sq_preds.loc[index])
+                else: 
+                    forecasts.append(results.forecast()[0][0])
+            except (ValueError, np.linalg.linalg.LinAlgError, MissingDataError) as e:
+                    forecasts.append(sq_preds.loc[index])
+    return(forecasts)
