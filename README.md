@@ -27,3 +27,9 @@ pip install -r requirements.txt
 ```
 python train.py
 ```
+
+5. To test new preprocessing techniques, write your function into `preprocessing.py`, making sure it is of the same format as the other functions in the file. For new prediction models and error evaluation functions, make corresponding changes to `models.py` or `evaluation.py`.
+
+6. Check the dataset.py file for information about methods for the UNDevGoalsDataset() class.  
+
+
