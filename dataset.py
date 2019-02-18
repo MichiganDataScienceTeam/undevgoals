@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import os.path
 
-import preprocessing
-import evaluation
-import models
+from preprocessing import *
+from evaluation import *
+from models import *
 
 _DATA_DIR = './data/'
 _TRAINING_SET_FN = 'TrainingSet.csv'
@@ -22,27 +22,56 @@ class UNDevGoalsDataset():
         self._submit_rows = pd.read_csv(submission_rows_fn, index_col=0)
 
     
-    def preprocess(self, pp_fn='preprocess_simple', pp_fn_kwargs={}):
-        """Preprocess data using function pp_fn (with additional kwargs if necessary) from preprocessing.py"""
-        """pp_fn is string with name of preprocessing model"""
+    def preprocess(self, pp_fn=preprocess_simple, **pp_fn_kwargs):
+        """
+        Preprocess data using function pp_fn (with additional kwargs if necessary) from preprocessing.py
         
-        return eval('preprocessing.'+pp_fn+'(self._train, self._submit_rows.index, **pp_fn_kwargs)')
-    
-    
-    def predictions(self, model_name='status_quo_model', model_kwargs={}, pp_fn='preprocess_simple', pp_fn_kwargs={}):
-        """Return predictions from model_name when fit to data preprocessed by pp_fn"""
-        """pp_fn is string with name of preprocessing model, and model_name is name of prediction model"""
-        """Allows input of additional keyword parameters for model and preprocessing functions"""
+        Args:
+            pp_fn: Name of preprocessing function from preprocessing.py
+            pp_fn_kwargs: Keyword arguments for preprocessing function
+            
+        Returns:
+            Output of preprocessing function applied to training data restricted to rows of interest
+        """
         
-        X,Y = self.preprocess(pp_fn, **pp_fn_kwargs)
-        return eval('models.'+model_name+'(X, **model_kwargs)') 
+        return pp_fn(self._train, self._submit_rows.index, **pp_fn_kwargs)
     
     
-    def prediction_error(self, error_fn='RMSE', model_name='status_quo_model', model_kwargs={}, pp_fn='preprocess_simple', pp_fn_kwargs={}):
-        """Check error of predictions usinf model_name and preprocessing pp_fn with error function error_fn"""
+    def predictions(self, preprocessed_data, model_name=status_quo_model,**model_kwargs):
+        """Return predictions from model_name given preprocessed data
         
-        X,Y = self.preprocess(pp_fn, **pp_fn_kwargs)
-        return eval('evaluation.'+error_fn+'(models.'+model_name+'(X, **model_kwargs), Y)')
+        Args:
+            model_name: Name of prediction model from models.py
+            model_kwargs: Model function keyword arguments
+            preprocessed_data: Data formatted to be passed in for predictions
+            
+        Good idea to have option for returning pickled representation of model when defining the functions in models.py. 
+        This option would go into the model_kwargs argument here.
+        
+        Returns:
+            Predictions for test column using this model and the passed in data
+        """
+    
+        return model_name(preprocessed_data, **model_kwargs)
+    
+    
+    def error(self, predictions, error_fn=RMSE, **error_fn_kwargs):
+        """
+        Check error of predictions with error function error_fn
+        
+        Args:
+            error_fn: Name of error function from evaluation.py
+            error_fn_kwargs: Keyworkd arguments for error function
+            predictions: Predicted test column values
+            
+        
+        Returns:
+            Error on predictions based on true values Y
+        
+        """
+        
+        _,Y = self.preprocess()
+        return error_fn(predictions, Y)
     
 
     def training_indices(self):
