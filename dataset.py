@@ -1,7 +1,10 @@
 import pandas as pd
+import numpy as np
 import os.path
 
-import evaluation
+from preprocessing import *
+from evaluation import *
+from models import *
 
 _DATA_DIR = './data/'
 _TRAINING_SET_FN = 'TrainingSet.csv'
@@ -10,11 +13,7 @@ _SUBMISSION_ROWS_FN = 'SubmissionRows.csv'
 class UNDevGoalsDataset():
 
     def __init__(self):
-        """Loads UN Development Goals dataset from disk.
-
-        To access preprocessed version of the data, try:
-
-        """
+        """Loads UN Development Goals dataset from disk"""
 
         training_set_fn = os.path.join(_DATA_DIR, _TRAINING_SET_FN)
         submission_rows_fn = os.path.join(_DATA_DIR, _SUBMISSION_ROWS_FN)
@@ -22,70 +21,68 @@ class UNDevGoalsDataset():
         self._train = pd.read_csv(training_set_fn, index_col=0)
         self._submit_rows = pd.read_csv(submission_rows_fn, index_col=0)
 
-
-    def preprocess_simple(self):
-        """Preprocess the data for preliminary model building.
-
-        This creates a training set where each row is a time series of a
-        specific macroeconomic indicator for a specific country. The `X` table
-        includes the time series from 1972 to 2006, and the 'Y' table includes
-        the time series values for 2007. Missing values are coded as NaNs.
-
-        X and Y only include rows for which we need to make submissions for the
-        competition. Future iterations will include more rows to use as
-        features.
-
+    
+    def preprocess(self, pp_fn=preprocess_simple, **pp_fn_kwargs):
+        """
+        Preprocess data using function pp_fn (with additional kwargs if necessary) from preprocessing.py
+        
+        Args:
+            pp_fn: Name of preprocessing function from preprocessing.py
+            pp_fn_kwargs: Keyword arguments for preprocessing function
+            
         Returns:
-           X (pd.DataFrame): features for prediction
-           Y (pd.Series): targets for prediction
+            Output of preprocessing function applied to training data restricted to rows of interest
         """
-
-        # Select rows for prediction only
-        X = self._train.loc[self._submit_rows.index]
-
-        # Select and rename columns
-        X = X.iloc[:, :-3]
-        X = X.rename(lambda x: int(x.split(' ')[0]), axis=1)
-
-        # Split prediction and target
-        Y = X.iloc[:, -1]  # 2007
-        X = X.iloc[:, :-1]  # 1972:2006
-
-        return X, Y
-
-
-    def preprocess_for_viz(self):
-        """Preprocess the data for visualization.
-
-        Selects rows for prediction and renames columns.
+        
+        return pp_fn(self._train, self._submit_rows.index, **pp_fn_kwargs)
+    
+    
+    def predictions(self, preprocessed_data, model_name=status_quo_model,**model_kwargs):
+        """Return predictions from model_name given preprocessed data
+        
+        Args:
+            model_name: Name of prediction model from models.py
+            model_kwargs: Model function keyword arguments
+            preprocessed_data: Data formatted to be passed in for predictions
+            
+        Good idea to have option for returning pickled representation of model when defining the functions in models.py. 
+        This option would go into the model_kwargs argument here.
+        
+        Returns:
+            Predictions for test column using this model and the passed in data
         """
+    
+        return model_name(preprocessed_data, **model_kwargs)
+    
+    
+    def error(self, predictions, error_fn=RMSE, **error_fn_kwargs):
+        """
+        Check error of predictions with error function error_fn
+        
+        Args:
+            error_fn: Name of error function from evaluation.py
+            error_fn_kwargs: Keyworkd arguments for error function
+            predictions: Predicted test column values
+            
+        
+        Returns:
+            Error on predictions based on true values Y
+        
+        """
+        
+        _,Y = self.preprocess()
+        return error_fn(predictions, Y)
+    
 
-        # Select rows for prediction only
-        X = self._train.loc[self._submit_rows.index]
-
-        # Select and rename columns
-        yrs = X.iloc[:, :-3]
-        names = X.iloc[:, -3:]
-        yrs = yrs.rename(lambda x: int(x.split(' ')[0]), axis=1)
-
-        df = pd.concat([yrs, names], axis=1)
-        gb = df.groupby('Series Name')
-
-        return gb
-
-
-    def evaluate(self, predictions):
-        """Check RMSE of predictions"""
-        _, Y = self.preprocess_simple()
-
-        return evaluation.RMSE(predictions, Y)
-
-
-if __name__=='__main__':
-
-    dataset = UNDevGoalsDataset()
-
-    X, Y = dataset.preprocess_simple()
-
-    print(X.describe())
-    print(Y.describe())
+    def training_indices(self):
+        """Returns list of indices that reference rows we need to predict"""
+        
+        X,_ = self.preprocess()
+        return np.array(X.index)
+    
+    
+    def training_indicators(self):
+        """Returns list of the 8 indicators we will need to predict"""
+        
+        return np.unique(self._train.loc[self.training_indices()]['Series Name'])
+        
