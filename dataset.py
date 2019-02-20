@@ -61,7 +61,7 @@ class UNDevGoalsDataset():
         
         Args:
             error_fn: Name of error function from evaluation.py
-            error_fn_kwargs: Keyworkd arguments for error function
+            error_fn_kwargs: Keyword arguments for error function
             predictions: Predicted test column values
             
         
@@ -71,7 +71,7 @@ class UNDevGoalsDataset():
         """
         
         _,Y = self.preprocess()
-        return error_fn(predictions, Y)
+        return error_fn(predictions, Y, **error_fn_kwargs)
     
 
     def training_indices(self):
