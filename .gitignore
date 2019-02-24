@@ -111,3 +111,6 @@ undg/
 
 # Plots
 plots/*
+
+# Mac files
+*.DS_Store
