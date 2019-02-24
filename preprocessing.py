@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def preprocess_simple(training_set, submit_rows_index):
+def preprocess_simple(training_set, submit_rows_index, years_ahead=1):
     """Preprocess the data for preliminary model building.
 
     This creates a training set where each row is a time series of a
@@ -13,11 +13,12 @@ def preprocess_simple(training_set, submit_rows_index):
     competition. Future iterations will include more rows to use as
     features.
 
+    years_ahead: the number of years between data and the prediction target.
+
     Returns:
        X (pd.DataFrame): features for prediction
        Y (pd.Series): targets for prediction
     """
-
     # Select rows for prediction only
     X = training_set.loc[submit_rows_index]
 
@@ -27,7 +28,7 @@ def preprocess_simple(training_set, submit_rows_index):
 
     # Split prediction and target
     Y = X.iloc[:, -1]  # 2007
-    X = X.iloc[:, :-1]  # 1972:2006
+    X = X.iloc[:, :-1*years_ahead]  # 1972:2006 (if years_ahead==1)
 
     return X, Y
 
@@ -50,7 +51,7 @@ def preprocess_for_viz(training_set, submit_rows_index):
 
     return gb
 
-def preprocess_avg_NANs(training_set, submit_rows_index):
+def preprocess_avg_NANs(training_set, submit_rows_index, years_ahead=1):
     """
     For NANs in most recent time period, takes average of all most recent series values with the same indicator name,
         or if there was a non NAN value in the most recent 10 years we take the most recent one  
@@ -71,7 +72,7 @@ def preprocess_avg_NANs(training_set, submit_rows_index):
 
     # Split prediction and target
     Y = X.iloc[:, -1]  # 2007
-    X = X.iloc[:, :-1]  # 1972:2006
+    X = X.iloc[:, :-1*years_ahead]  # 1972:2006
     
     indicators=np.unique(full_training_rows['Series Name'])
     last_column_train=X.iloc[:, -1]
