@@ -8,3 +8,5 @@ scipy==1.2.0
 six==1.12.0
 statsmodels==0.9.0
 matplotlib==3.0.2
+pycountry==18.12.8
+pycountry_convert==0.7.2
