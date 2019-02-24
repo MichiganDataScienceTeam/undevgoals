@@ -28,6 +28,14 @@ def main():
     arima_predictions_improved = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_improved)
     arima_rmse_improved = data.error(error_fn=RMSE, predictions=arima_predictions_improved)
     print('ARIMA model RMSE with better preprocessing:', arima_rmse_improved)
+
+
+
+    print('Diagnostics...')
+
+    # Check how often ARIMA defaults to Status Quo
+    arima_is_sq = (arima_predictions_improved==status_quo_predictions_improved).mean()
+    print('ARIMA defaults to Status Quo (%):', arima_is_sq)
     
 
 if __name__ == '__main__':
