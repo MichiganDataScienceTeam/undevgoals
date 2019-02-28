@@ -57,7 +57,7 @@ def main():
     arima_rmse_simple = data.error(error_fn=RMSE, predictions=arima_predictions_simple)
     print('ARIMA model RMSE with simple preprocessing (1 yr):', arima_rmse_simple)
 
-    arima_predictions_simple_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_simple_5)
+    arima_predictions_simple_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_simple_5, forward=5)
     arima_rmse_simple_5 = data.error(error_fn=RMSE, predictions=arima_predictions_simple_5)
     print('ARIMA model RMSE with simple preprocessing (5 yr):', arima_rmse_simple_5)
 
@@ -70,7 +70,7 @@ def main():
     arima_rmse_with_global_avg = data.error(error_fn=RMSE, predictions=arima_predictions_with_global_avg)
     print('ARIMA model RMSE with global average imputation (1 yr):', arima_rmse_with_global_avg)
 
-    arima_predictions_with_global_avg_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_global_avg_5)
+    arima_predictions_with_global_avg_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_global_avg_5, forward=5)
     arima_rmse_with_global_avg_5 = data.error(error_fn=RMSE, predictions=arima_predictions_with_global_avg_5)
     print('ARIMA model RMSE with global average imputation (5 yr):', arima_rmse_with_global_avg_5)
 
@@ -83,13 +83,13 @@ def main():
     arima_rmse_with_cont_avg = data.error(error_fn=RMSE, predictions=arima_predictions_with_cont_avg)
     print('ARIMA model RMSE with continent average imputation (1 yr):', arima_rmse_with_cont_avg)
 
-    arima_predictions_with_cont_avg_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_cont_avg_5)
+    arima_predictions_with_cont_avg_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_cont_avg_5, forward=5)
     arima_rmse_with_cont_avg_5 = data.error(error_fn=RMSE, predictions=arima_predictions_with_cont_avg_5)
     print('ARIMA model RMSE with continent average imputation (5 yr):', arima_rmse_with_cont_avg_5)
 
     arima_rmse_with_cont_avg_avg = (arima_rmse_with_cont_avg + arima_rmse_with_cont_avg_5) / 2
     print('ARIMA model RMSE with continent average imputation (avg):', arima_rmse_with_cont_avg_avg)
-    
+
 
 if __name__ == '__main__':
     main()

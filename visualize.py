@@ -15,7 +15,7 @@ def main():
     X5, Y5 = data.preprocess(pp_fn = preprocess_avg_NANs, years_ahead=5)
 
     preds = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X)
-    preds5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X5)
+    preds5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X5, forward=5)
 
     preds = pd.Series(preds, index=X.index)
     preds5 = pd.Series(preds5, index=X.index)
@@ -73,8 +73,7 @@ def visualize_worst(series_name, data, preds, preds5=None):
     diff = diff.sort_values()
 
     # Only plot the 10 worst values
-    to_plot = diff.iloc[:10].index
-    #to_plot = diff.iloc[-10:].index
+    to_plot = diff.iloc[-10:].index
     data = data.loc[to_plot]
     preds = preds.loc[to_plot]
     if do5:
