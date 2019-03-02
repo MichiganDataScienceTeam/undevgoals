@@ -4,6 +4,7 @@ import numpy as np
 import pycountry, pycountry_convert
 import json
 from scipy.optimize import curve_fit
+import warnings
 
 def preprocess_with_interpolation(training_set):
         """Preprecoess the data while adding in continent and region in order to better
