@@ -19,7 +19,7 @@ def status_quo_model(X):
 
     return preds
 
-def arima(X, order = (1,1,1), lookback = 5):
+def arima(X, order = (1,1,1), lookback = 5, forward=1):
     """Predict the most recent value using an ARIMA model.
 
     By default, will fit ARIMA(1,1,1) for each row by using
@@ -47,8 +47,9 @@ def arima(X, order = (1,1,1), lookback = 5):
                 results = model.fit(disp = 0)
                 if pd.isnull(results.forecast()[0][0]) or np.abs(results.forecast()[0][0])>2:
                     forecasts.append(sq_preds.loc[index])
-                else: 
-                    forecasts.append(results.forecast()[0][0])
+                else:
+                    forecast = results.forecast(steps=forward)
+                    forecasts.append(forecast[0][-1])
             except (ValueError, np.linalg.linalg.LinAlgError, MissingDataError) as e:
                     forecasts.append(sq_preds.loc[index])
     return(forecasts)
