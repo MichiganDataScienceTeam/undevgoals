@@ -2,10 +2,18 @@ import dataset
 from preprocessing import *
 from models import *
 from evaluation import *
+from mlp import mlp
 
 def main():
 
     data = dataset.UNDevGoalsDataset()
+
+    Xtr, Ytr, Xval, Yval = data.preprocess(pp_fn=preprocess_by_country_one_year)
+    preds = data.predictions(model_name=mlp, preprocessed_data=(Xtr, Ytr, Xval, Yval))
+    assert False
+    #rmse = data.error(error_fn=RMSE, predictions=preds)
+    #print(rmse)
+
 
     X_simple,Y_simple = data.preprocess(pp_fn = preprocess_simple)
     X_simple_5,Y_simple_5 = data.preprocess(pp_fn = preprocess_simple, years_ahead=5)
