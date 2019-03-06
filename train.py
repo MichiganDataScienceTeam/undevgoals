@@ -2,10 +2,18 @@ import dataset
 from preprocessing import *
 from models import *
 from evaluation import *
+from mlp import mlp
 
 def main():
 
     data = dataset.UNDevGoalsDataset()
+
+    Xtr, Ytr, Xval, Yval = data.preprocess(pp_fn=preprocess_by_country_one_year)
+    preds = data.predictions(model_name=mlp, preprocessed_data=(Xtr, Ytr, Xval, Yval))
+    assert False
+    #rmse = data.error(error_fn=RMSE, predictions=preds)
+    #print(rmse)
+
 
     X_simple,Y_simple = data.preprocess(pp_fn = preprocess_simple)
     X_simple_5,Y_simple_5 = data.preprocess(pp_fn = preprocess_simple, years_ahead=5)
@@ -53,11 +61,13 @@ def main():
 
     print()
 
-    arima_predictions_simple = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_simple)
+    arima_predictions_simple = data.predictions(model_name=arima, preprocessed_data=X_simple)
     arima_rmse_simple = data.error(error_fn=RMSE, predictions=arima_predictions_simple)
     print('ARIMA model RMSE with simple preprocessing (1 yr):', arima_rmse_simple)
 
-    arima_predictions_simple_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_simple_5, forward=5)
+
+    arima_predictions_simple_5 = data.predictions(model_name=arima, preprocessed_data=X_simple_5, forward=5)
+
     arima_rmse_simple_5 = data.error(error_fn=RMSE, predictions=arima_predictions_simple_5)
     print('ARIMA model RMSE with simple preprocessing (5 yr):', arima_rmse_simple_5)
 
@@ -66,11 +76,13 @@ def main():
 
     print()
 
-    arima_predictions_with_global_avg = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_global_avg)
+    arima_predictions_with_global_avg = data.predictions(model_name=arima, preprocessed_data=X_with_global_avg)
     arima_rmse_with_global_avg = data.error(error_fn=RMSE, predictions=arima_predictions_with_global_avg)
     print('ARIMA model RMSE with global average imputation (1 yr):', arima_rmse_with_global_avg)
 
-    arima_predictions_with_global_avg_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_global_avg_5, forward=5)
+
+    arima_predictions_with_global_avg_5 = data.predictions(model_name=arima, preprocessed_data=X_with_global_avg_5, forward=5)
+
     arima_rmse_with_global_avg_5 = data.error(error_fn=RMSE, predictions=arima_predictions_with_global_avg_5)
     print('ARIMA model RMSE with global average imputation (5 yr):', arima_rmse_with_global_avg_5)
 
@@ -79,11 +91,12 @@ def main():
 
     print()
 
-    arima_predictions_with_cont_avg = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_cont_avg)
+    arima_predictions_with_cont_avg = data.predictions(model_name=arima, preprocessed_data=X_with_cont_avg)
     arima_rmse_with_cont_avg = data.error(error_fn=RMSE, predictions=arima_predictions_with_cont_avg)
     print('ARIMA model RMSE with continent average imputation (1 yr):', arima_rmse_with_cont_avg)
 
-    arima_predictions_with_cont_avg_5 = data.predictions(model_name=arima, order=(1,1,1), lookback=5, preprocessed_data=X_with_cont_avg_5, forward=5)
+    arima_predictions_with_cont_avg_5 = data.predictions(model_name=arima, preprocessed_data=X_with_cont_avg_5, forward=5)
+
     arima_rmse_with_cont_avg_5 = data.error(error_fn=RMSE, predictions=arima_predictions_with_cont_avg_5)
     print('ARIMA model RMSE with continent average imputation (5 yr):', arima_rmse_with_cont_avg_5)
 

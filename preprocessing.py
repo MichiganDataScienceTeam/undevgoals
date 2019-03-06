@@ -3,6 +3,7 @@ import numpy as np
 
 import pycountry, pycountry_convert
 import json
+import random
 from scipy.optimize import curve_fit
 import warnings
 
@@ -281,6 +282,89 @@ def preprocess_simple(training_set, submit_rows_index, years_ahead=1):
     X = X.iloc[:, :-1*years_ahead]  # 1972:2006 (if years_ahead==1)
 
     return X, Y
+
+def preprocess_by_country_one_year(training_set, submit_rows_index, years_ahead=1):
+    """Group data by country.
+
+    Each row is one country, each feature is the most recent value of each
+    series for that country, and each target is the next value of a target
+    series.
+
+    years_ahead: the number of years between data and the prediction target.
+
+    Returns:
+       X (pd.DataFrame): features for prediction
+       Y (pd.Series): targets for prediction
+    """
+
+    # Rename columns to make indexing easier
+    info_cols = training_set.iloc[:, -3:]
+    training_set = training_set.iloc[:, :-3]
+    training_set = training_set.rename(lambda x: int(x.split(' ')[0]), axis=1)
+    training_set = pd.concat([training_set, info_cols], axis=1)
+
+    # Mark all columns that need to be predicted in 2007
+    training_set['to_predict'] = training_set.index.isin(submit_rows_index)
+
+    # Get a list of all series codes, and all series codes that we predict
+    # Not all countries will have values for all codes
+    # TODO: remove some series with not many values, only keep top K
+    all_series = training_set['Series Code'].value_counts()[:100]
+    pred_series = training_set.loc[submit_rows_index, 'Series Code'].unique()
+
+
+    # Group by country
+    gb = training_set.groupby('Country Name')
+
+    # Construct dataframe row by row
+    Xrows, Yrows = [], []
+    for g, group in gb:
+        x = group[2007-years_ahead]
+        y = group[2007]
+        code = group['Series Code']
+        pred = group['to_predict']
+
+        Xrow = {}
+        Yrow = {}
+        for xval, yval, series, to_pred in zip(x, y, code, pred):
+            if series in all_series:
+                Xrow[series] = xval
+            if to_pred:
+                Yrow[series] = yval
+
+        Xrow = pd.DataFrame(Xrow, index=[g])
+        Yrow = pd.DataFrame(Yrow, index=[g])
+        Xrows.append(Xrow)
+        Yrows.append(Yrow)
+
+    X = pd.concat(Xrows, sort=False)
+    Y = pd.concat(Yrows, sort=False)
+
+    # Impute missing values (X only)
+    Xnull = pd.isnull(X)
+    X = X.fillna(X.mean())
+
+    # Remove columns that can't be imputed
+    Xmeans = X.mean()
+    keep_cols = Xmeans.index[~pd.isnull(Xmeans)].tolist()
+    X = X[keep_cols]
+    Xnull = Xnull[keep_cols]
+    for col in X.columns:
+        X[col+'_null'] = Xnull[col].astype(int)
+
+    # Random split
+    c = list(gb.groups.keys())
+    np.random.shuffle(c)
+
+    ctr = c[:160]
+    cval = c[160:]
+
+    Xtr = X.loc[ctr]
+    Xval = X.loc[cval]
+    Ytr = Y.loc[ctr]
+    Yval = Y.loc[cval]
+
+    return Xtr, Ytr, Xval, Yval
 
 def preprocess_for_viz(training_set, submit_rows_index):
     """Preprocess the data for visualization.

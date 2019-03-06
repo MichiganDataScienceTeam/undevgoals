@@ -19,7 +19,8 @@ def status_quo_model(X):
 
     return preds
 
-def arima(X, order = (1,1,1), lookback = 5, forward=1):
+def arima(X, order = (2,2,0), backup_order = (1,1,0), lookback = 100, forward=5):
+
     """Predict the most recent value using an ARIMA model.
 
     By default, will fit ARIMA(1,1,1) for each row by using
@@ -29,10 +30,12 @@ def arima(X, order = (1,1,1), lookback = 5, forward=1):
     If any issues fitting time series model, use status_quo."""
     
     sq_preds = status_quo_model(X)
-    forecasts = list()
+    all_forecasts = list()
     # lots of warnings about convergence. can ignore for now.
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
+        sq_fill = 0
+        linalg_fill = 0
         for index, row in X.iterrows():
             # fill in gaps
             row_interp = row.interpolate(
@@ -42,14 +45,30 @@ def arima(X, order = (1,1,1), lookback = 5, forward=1):
             # Since so much missing data exists, it is not
             # clear that including more years of interpolated
             # data is helping in terms of RMSE
-            model = sm.tsa.arima_model.ARIMA(row_interp.tolist()[-lookback:], order=order)
+            results = None
             try:
+                model = sm.tsa.arima_model.ARIMA(row_interp.tolist()[-lookback:], order=order)
                 results = model.fit(disp = 0)
-                if pd.isnull(results.forecast()[0][0]) or np.abs(results.forecast()[0][0])>2:
-                    forecasts.append(sq_preds.loc[index])
-                else:
-                    forecast = results.forecast(steps=forward)
-                    forecasts.append(forecast[0][-1])
-            except (ValueError, np.linalg.linalg.LinAlgError, MissingDataError) as e:
-                    forecasts.append(sq_preds.loc[index])
-    return(forecasts)
+            except (ValueError, np.linalg.linalg.LinAlgError):
+                try:
+                    model = sm.tsa.arima_model.ARIMA(row_interp.tolist()[-lookback:], order=backup_order)
+                    results = model.fit(disp = 0)
+                except (ValueError, np.linalg.linalg.LinAlgError):
+                    all_forecasts.append(sq_preds.loc[index])
+                    linalg_fill += 1
+                    continue
+
+            if results is None:
+                all_forecasts.append(sq_preds.loc[index])
+                continue
+
+            forecasts, _, _ = results.forecast(steps=forward)
+            if np.any(pd.isnull(forecasts)):
+                all_forecasts.append(sq_preds.loc[index])
+                sq_fill += 1
+                continue
+            
+            all_forecasts.append(forecasts[-1])
+
+    return(all_forecasts)
+
