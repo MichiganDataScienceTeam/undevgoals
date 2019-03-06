@@ -20,6 +20,7 @@ def status_quo_model(X):
     return preds
 
 def arima(X, order = (2,2,0), backup_order = (1,1,0), lookback = 100, forward=5):
+
     """Predict the most recent value using an ARIMA model.
 
     By default, will fit ARIMA(1,1,1) for each row by using
@@ -70,3 +71,4 @@ def arima(X, order = (2,2,0), backup_order = (1,1,0), lookback = 100, forward=5)
             all_forecasts.append(forecasts[-1])
 
     return(all_forecasts)
+

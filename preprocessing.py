@@ -4,7 +4,8 @@ import numpy as np
 import pycountry, pycountry_convert
 import json
 import random
-
+from scipy.optimize import curve_fit
+import warnings
 
 def preprocess_with_interpolation(training_set):
         """Preprecoess the data while adding in continent and region in order to better
@@ -186,6 +187,70 @@ def preprocess_with_continent_interpolation(training_set, submit_rows_index, yea
     X = X.iloc[:, :-1*years_ahead]  # 1972:2006 (if years_ahead==1)
 
     return X, Y
+
+def preprocess_with_continent_and_linear_interpolation(training_set, submit_rows_index, years_ahead=1):
+    """Preprocess the training set to get the submittable training rows
+    with continent-indicator-year averages filled in for missing data. These
+    averages come from the ind_yr_cont_avgs.json file
+    """
+    X_with_cont = preprocess_with_interpolation(training_set)
+    X_submit = X_with_cont.loc[submit_rows_index]
+
+    def func(x, a, b, c, d):
+            return np.exp(c*x + d)
+
+    def rename_cols(colname):
+        if colname not in ['Country Name', 'Series Code', 'Series Name', 'continent']:
+            return int(colname.split(' ')[0])
+        else:
+            return colname
+    X = X_submit.rename(rename_cols, axis=1)
+
+    with open("ind_yr_cont_avgs.json", "r") as content:
+        cont_avgs = json.load(content)
+
+    def impute_indyrcontavg(r, ind, cont):
+        if pd.isna(r['value']):
+            r['value'] = cont_avgs[str((ind, cont, r.name))]
+            return(r)
+        else:
+            return(r)
+
+    for ix,row in X.iterrows():
+        ind = row['Series Code']
+        cont = row['continent']
+        df = row.to_frame(0)
+        df.columns = ['value']
+        df = df.apply(impute_indyrcontavg, axis = 1, args=(ind,cont))
+        X.loc[ix] = df['value']
+    # we only want the time series data for each row
+    X = X.iloc[:, :-4]
+
+    # Split prediction and target
+    Y = X.iloc[:, -1]  # 2007
+    X = X.iloc[:, :-1*years_ahead]  # 1972:2006 (if years_ahead==1)
+    # Now do the linear interpolation and extrapolation part
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        for ix, row in X.iterrows():
+            # First interpolate
+            interp_row = row.interpolate(method = 'linear')
+            # Initial parameter guess, just to kick off the optimization
+            guess = (0, 0, 0, 0)
+            # Create copy of data to remove NaNs for curve fitting
+            fit_row = interp_row.dropna()
+            # Fit on non NaNs
+            x = fit_row.index.astype(float).values
+            y = fit_row.values
+            # Curve fit series and get curve parameters
+            curve_out = curve_fit(func, x, y, guess)
+            # Store optimized parameters
+            params = curve_out[0]
+            # Impute missing values
+            x = interp_row[pd.isna(interp_row)].index.astype(float).values
+            interp_row[x] = [max(0,v) for v in func(x, *params)]
+            X.loc[ix] = interp_row
+        return X, Y
 
 def preprocess_simple(training_set, submit_rows_index, years_ahead=1):
     """Preprocess the data for preliminary model building.
