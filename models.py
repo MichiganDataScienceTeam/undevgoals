@@ -19,7 +19,7 @@ def status_quo_model(X):
 
     return preds
 
-def arima(X, order = (2,2,0), backup_order = (1,1,0), lookback = 100, forward=5):
+def arima(X, order = (2,1,0), backup_order = (1,1,0), lookback = 8, forward=1):
 
     """Predict the most recent value using an ARIMA model.
 
