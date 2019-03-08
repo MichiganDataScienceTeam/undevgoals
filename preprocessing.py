@@ -368,17 +368,19 @@ def preprocess_by_country_one_year(training_set, submit_rows_index, years_ahead=
 
 
 def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1972):
-    """Group data by country.
+    """Group data by country for startyear - 2007
+    Only series are included in 'percent' (90%) of coutries are included
+    Use linear interpolation on both directions for the missing values in training data
 
-    Each row is one country, each feature is the most recent value of each
-    series for that country, and each target is the next value of a target
-    series.
-
-    years_ahead: the number of years between data and the prediction target.
+    Start Year: the starting year that is including in X
 
     Returns:
-       X (pd.DataFrame): features for prediction
-       Y (pd.Series): targets for prediction
+       two dictionaries of pd.DataFrame: 
+          key: nations, 
+          rows for DataFrame: years, 
+          column for DataFrame: series name
+       X: training data from startyear - 2006
+       Y: targets for prediction in 2007
     """
 
     # Rename columns to make indexing easier
@@ -432,6 +434,7 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
     X = Xrows
     Y = Yrows
 
+    # linear interpolation for missing values in X
     for nation in X:
       X[nation].interpolate(method = 'linear', axis = 0,  limit_direction = 'both', inplace = True)
 
