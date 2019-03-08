@@ -8,6 +8,10 @@ def main():
 
     data = dataset.UNDevGoalsDataset()
 
+    # X, Y = data.preprocess(pp_fn=preprocess_by_country_all_years)
+
+    # assert False
+
     # Xtr, Ytr, Xval, Yval = data.preprocess(pp_fn=preprocess_by_country_one_year)
     # preds = data.predictions(model_name=mlp, preprocessed_data=(Xtr, Ytr, Xval, Yval))
     # assert False
