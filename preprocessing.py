@@ -396,11 +396,13 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
     # Not all countries will have values for all codes
     # require at least 'percent' of countries should have this series.
     percent = 0.9
-    all_series = training_set['Series Code'].value_counts()
-    all_series = all_series.where(all_series>all_series[0]*percent).dropna()
-    
+    all_series = training_set['Series Code'].value_counts()[:100].index
+    #all_series = all_series.where(all_series>all_series[0]*percent).dropna()
     pred_series = training_set.loc[submit_rows_index, 'Series Code'].unique()
 
+    for s in pred_series:
+            if s not in all_series:
+                    all_series = all_series.append(pd.Index([s]))
 
     # Group by country
     gb = training_set.groupby('Country Name')
@@ -408,7 +410,8 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
     # Construct dataframe row by row
     # X: Nations * Year * Series
     # Y: Nations * 2007 * Series 
-    Xrows, Yrows = {}, {}
+    Xrows = {}
+    Yrows = {}
     for g, group in gb:
         years = [int(i) for i in range(startyear,2007)]
         xarray = group[ years ]
@@ -416,8 +419,8 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
         code = group['Series Code']
         pred = group['to_predict']
 
-        Xrow = {}
-        Yrow = {}
+        Xrow = {c:np.full((2007-startyear,), np.nan) for c in all_series}
+        Yrow = {c:np.full((1,), np.nan) for c in pred_series}
         for xind, yind, series, to_pred in zip(xarray.index, y.index, code, pred):
             if series in all_series:
                 Xrow[series] = xarray.loc[xind].T
@@ -425,11 +428,9 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
                 Yrow[series] = y.loc[yind].T
 
         Xrow = pd.DataFrame(Xrow)
-        if not Xrow.empty:  ## NAN is not empty
-          Xrows[g] = Xrow
+        Xrows[g] = Xrow
         Yrow = pd.DataFrame(Yrow, index=[2007])
-        if not Yrow.empty: 
-          Yrows[g] = Yrow
+        Yrows[g] = Yrow
 
     X = Xrows
     Y = Yrows
@@ -438,7 +439,12 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
     for nation in X:
       X[nation].interpolate(method = 'linear', axis = 0,  limit_direction = 'both', inplace = True)
 
-    return X, Y
+    # Keep track of which columns are for prediction
+    pred_cols = {}
+    for s in pred_series:
+            pred_cols[s] = all_series.get_loc(s)
+
+    return X, Y, pred_cols
 
 def preprocess_for_viz(training_set, submit_rows_index):
     """Preprocess the data for visualization.

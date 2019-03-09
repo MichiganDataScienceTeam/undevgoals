@@ -3,14 +3,15 @@ from preprocessing import *
 from models import *
 from evaluation import *
 from mlp import mlp
+from lstm import lstm
 
 def main():
 
     data = dataset.UNDevGoalsDataset()
 
-    # X, Y = data.preprocess(pp_fn=preprocess_by_country_all_years)
-
-    # assert False
+    X, Y, pred_cols = data.preprocess(pp_fn=preprocess_by_country_all_years)
+    preds = data.predictions(model_name=lstm, preprocessed_data=(X, Y, pred_cols))
+    
 
     # Xtr, Ytr, Xval, Yval = data.preprocess(pp_fn=preprocess_by_country_one_year)
     # preds = data.predictions(model_name=mlp, preprocessed_data=(Xtr, Ytr, Xval, Yval))
