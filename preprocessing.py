@@ -495,12 +495,12 @@ def preprocess_avg_NANs(training_set, submit_rows_index, years_ahead=1):
         NAN_training_indices_with_indicator = training_rows_with_indicator[training_rows_with_indicator.isnull()].index 
         median_of_others = np.median(all_rows_with_indicator[~all_rows_with_indicator.isnull()])
         
-        # For series we need to replace NANs in, if there's a non-NAN value in the most recent 10 years we take the most recent one
+        # For series we need to replace NANs in, if there's a non-NAN value in the most recent 5 years we take the most recent one
         # Otherwise, we replace the value with the mean from all the time series corresponding to the same indicator
         for i in NAN_training_indices_with_indicator:
             X[X.columns[-1]][i] = median_of_others
             
-            for recent_index in np.arange(2,10):
+            for recent_index in np.arange(2,5):
                 recent_val = X[X.columns[-recent_index]][i]
                 
                 if not(np.isnan(recent_val)):
@@ -516,3 +516,63 @@ def preprocess_avg_NANs(training_set, submit_rows_index, years_ahead=1):
         X.loc[index]=row_interp.values
         
     return X, Y
+
+
+def pad(DF, df_indicators, bigger_DF, bigger_df_indicators):
+    """
+    Pad dataframe df according to interpolation on sorted grid of values for each indicator
+    df_indicators is pd.Series of indicator column for the dataframe df
+    """
+    df=DF.copy()
+    inds=np.unique(df_indicators)
+    for ind in inds:
+        data = df.loc[df_indicators==ind]
+        sorted_indices = data.mean(axis=1).sort_values().index
+        data = data.loc[sorted_indices].values
+        data_bigger = bigger_DF.loc[bigger_df_indicators==ind].values
+        
+        for row in range(data.shape[0]):
+            #if all values are NANs, set yearly values to the global averages in bigger_DF for each year
+            if np.isnan(data[row,:]).all():
+                data[row,:] = np.nanmean(data_bigger)
+        
+        bad_indexes = np.isnan(data)
+        good_indexes = np.logical_not(bad_indexes)
+        good_data = data[good_indexes]
+                
+        interpolated = np.interp(bad_indexes.nonzero()[0], good_indexes.nonzero()[0], good_data)
+        data_interp=data.copy()
+        data_interp[bad_indexes] = interpolated
+        
+        df.loc[sorted_indices] = data_interp
+    
+    return df
+
+
+def preprocess_pad(training_set, submit_rows_index, years_ahead=1):
+    """
+    preprocessing using 'pad' functionality for each indicator type
+    """
+    train_indicators = np.array(['Achieve universal primary education', 'Combat HIV/AIDS',
+       'Combat malaria and other diseases',
+       'Develop a global partnership for development: Internet Use',
+       'Ensure environmental sustainability', 'Improve maternal health',
+       'Reduce child mortality'])
+    
+    # Select rows for prediction only
+    full_training_rows = training_set.loc[submit_rows_index]
+
+    # Select and rename columns
+    X = full_training_rows.iloc[:, :-3]
+    X = X.rename(lambda x: int(x.split(' ')[0]), axis=1)
+
+    # Split prediction and target
+    Y = X.iloc[:, -1]  # test
+    X = X.iloc[:, :-1*years_ahead]  # training
+    
+    full_df = training_set.loc[np.isin(training_set['Series Name'],train_indicators)].iloc[:,:-3-years_ahead]
+    train_indicators = training_set.loc[X.index]['Series Name']
+    full_df_indicators = training_set.loc[full_df.index]['Series Name']
+    
+    
+    return pad(X, train_indicators, full_df, full_df_indicators), Y
