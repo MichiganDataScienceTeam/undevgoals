@@ -3,6 +3,7 @@ import numpy as np
 import statsmodels as sm
 from statsmodels.tsa.stattools import MissingDataError
 import warnings
+from statsmodels.tsa.api import VAR
 
 def status_quo_model(X):
     """Predict the most recent value of each series.
@@ -72,3 +73,14 @@ def arima(X, order = (2,1,0), backup_order = (1,1,0), lookback = 8, forward=1):
 
     return(all_forecasts)
 
+def var(X, lookback = 4, forward=1):
+    """
+    Prediction using VAR model
+    """
+    dat = X.iloc[:,-lookback:].values.T
+    dat += 1e-10*np.random.rand(dat.shape[0],dat.shape[1])
+    model = VAR(dat)
+    results = model.fit()
+    lag_order = results.k_ar
+
+    return results.forecast(dat[-lag_order:], forward)[-1]

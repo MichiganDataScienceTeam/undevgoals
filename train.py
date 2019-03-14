@@ -99,6 +99,18 @@ def main():
     print('ARIMA model RMSE with global average imputation (avg):', arima_rmse_with_global_avg_avg)
 
     print()
+    
+    # VAR with global avg interpolation
+    VAR_predictions_with_global_avg = data.predictions(model_name=var, lookback=4, preprocessed_data=X_with_global_avg)
+    VAR_rmse_with_global_avg = data.error(error_fn=RMSE, predictions=VAR_predictions_with_global_avg)
+    print('VAR model RMSE with global average imputation (1 yr):', VAR_rmse_with_global_avg)
+    VAR_predictions_with_global_avg_5 = data.predictions(model_name=var, lookback=4, preprocessed_data=X_with_global_avg_5, forward=5)
+    VAR_rmse_with_global_avg_5 = data.error(error_fn=RMSE, predictions=VAR_predictions_with_global_avg_5)
+    print('VAR model RMSE with global average imputation (5 yr):', VAR_rmse_with_global_avg_5)
+    VAR_rmse_with_global_avg_avg = (VAR_rmse_with_global_avg + VAR_rmse_with_global_avg_5) / 2
+    print('VAR model RMSE with global average imputation (avg):', VAR_rmse_with_global_avg_avg)
+
+    print()
 
     # Arima with continent avg interpolation
     arima_predictions_with_cont_avg = data.predictions(model_name=arima, preprocessed_data=X_with_cont_avg)
