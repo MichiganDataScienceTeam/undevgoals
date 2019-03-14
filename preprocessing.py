@@ -401,50 +401,50 @@ def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1
     pred_series = training_set.loc[submit_rows_index, 'Series Code'].unique()
 
     for s in pred_series:
-            if s not in all_series:
-                    all_series = all_series.append(pd.Index([s]))
+      if s not in all_series:
+        all_series = all_series.append(pd.Index([s]))
 
     # Group by country
     gb = training_set.groupby('Country Name')
 
     # Construct dataframe row by row
-    # X: Nations * Year * Series
-    # Y: Nations * 2007 * Series 
+    # X: Nations * Year (startyear - 2007) * Series
+
     Xrows = {}
-    Yrows = {}
     for g, group in gb:
-        years = [int(i) for i in range(startyear,2007)]
+        years = [int(i) for i in range(startyear,2008)]
         xarray = group[ years ]
-        y = group[2007]
         code = group['Series Code']
         pred = group['to_predict']
 
-        Xrow = {c:np.full((2007-startyear,), np.nan) for c in all_series}
-        Yrow = {c:np.full((1,), np.nan) for c in pred_series}
-        for xind, yind, series, to_pred in zip(xarray.index, y.index, code, pred):
+        Xrow = {c:np.full((2008-startyear,), np.nan) for c in all_series}
+        #Yrow = {c:np.full((1,), np.nan) for c in pred_series}
+        for xind, series, to_pred in zip(xarray.index, code, pred):
             if series in all_series:
                 Xrow[series] = xarray.loc[xind].T
-            if to_pred:
-                Yrow[series] = y.loc[yind].T
+            #if to_pred:
+            # try to put all series in 2007 in Y
+                # Yrow[series] = y.loc[yind].T
 
         Xrow = pd.DataFrame(Xrow)
         Xrows[g] = Xrow
-        Yrow = pd.DataFrame(Yrow, index=[2007])
-        Yrows[g] = Yrow
 
     X = Xrows
-    Y = Yrows
 
     # linear interpolation for missing values in X
-    for nation in X:
-      X[nation].interpolate(method = 'linear', axis = 0,  limit_direction = 'both', inplace = True)
+    # do the linear interpolation in model part
+    #for nation in X:
+    #  X[nation].interpolate(method = 'linear', axis = 0,  limit_direction = 'both', inplace = True)
 
     # Keep track of which columns are for prediction
     pred_cols = {}
     for s in pred_series:
             pred_cols[s] = all_series.get_loc(s)
 
-    return X, Y, pred_cols
+    # Keep track of the rows for submission 
+    sub_rows = training_set.loc[submit_rows_index, ['Country Name','Series Code']]
+
+    return X, pred_cols, sub_rows
 
 def preprocess_for_viz(training_set, submit_rows_index):
     """Preprocess the data for visualization.

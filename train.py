@@ -9,13 +9,13 @@ def main():
 
     data = dataset.UNDevGoalsDataset()
 
-    X, Y, pred_cols = data.preprocess(pp_fn=preprocess_by_country_all_years)
-    preds = data.predictions(model_name=lstm, preprocessed_data=(X, Y, pred_cols))
+    X,  pred_cols, sub_rows = data.preprocess(pp_fn=preprocess_by_country_all_years)
+    data.predictions(model_name=lstm, preprocessed_data=(X, pred_cols, sub_rows))
     
 
     # Xtr, Ytr, Xval, Yval = data.preprocess(pp_fn=preprocess_by_country_one_year)
     # preds = data.predictions(model_name=mlp, preprocessed_data=(Xtr, Ytr, Xval, Yval))
-    # assert False
+    assert False
     #rmse = data.error(error_fn=RMSE, predictions=preds)
     #print(rmse)
 
