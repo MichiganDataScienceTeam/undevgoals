@@ -366,6 +366,80 @@ def preprocess_by_country_one_year(training_set, submit_rows_index, years_ahead=
 
     return Xtr, Ytr, Xval, Yval
 
+
+def preprocess_by_country_all_years(training_set, submit_rows_index, startyear=1972):
+    """Group data by country for startyear - 2007
+    Only series are included in 'percent' (90%) of coutries are included
+    Use linear interpolation on both directions for the missing values in training data
+
+    Start Year: the starting year that is including in X
+
+    Returns:
+       two dictionaries of pd.DataFrame: 
+          key: nations, 
+          rows for DataFrame: years, 
+          column for DataFrame: series name
+       X: training data from startyear - 2006
+       Y: targets for prediction in 2007
+    """
+
+    # Rename columns to make indexing easier
+    info_cols = training_set.iloc[:, -3:]
+    training_set = training_set.iloc[:, :-3]
+    training_set = training_set.rename(lambda x: int(x.split(' ')[0]), axis=1)
+    training_set = pd.concat([training_set, info_cols], axis=1)
+
+    # Mark all columns that need to be predicted in 2007
+    training_set['to_predict'] = training_set.index.isin(submit_rows_index)
+
+    # Get a list of all series codes, and all series codes that we predict
+    # Not all countries will have values for all codes
+    # require at least 'percent' of countries should have this series.
+    percent = 0.9
+    all_series = training_set['Series Code'].value_counts()
+    all_series = all_series.where(all_series>all_series[0]*percent).dropna()
+    
+    pred_series = training_set.loc[submit_rows_index, 'Series Code'].unique()
+
+
+    # Group by country
+    gb = training_set.groupby('Country Name')
+
+    # Construct dataframe row by row
+    # X: Nations * Year * Series
+    # Y: Nations * 2007 * Series 
+    Xrows, Yrows = {}, {}
+    for g, group in gb:
+        years = [int(i) for i in range(startyear,2007)]
+        xarray = group[ years ]
+        y = group[2007]
+        code = group['Series Code']
+        pred = group['to_predict']
+
+        Xrow = {}
+        Yrow = {}
+        for xind, yind, series, to_pred in zip(xarray.index, y.index, code, pred):
+            if series in all_series:
+                Xrow[series] = xarray.loc[xind].T
+            if to_pred:
+                Yrow[series] = y.loc[yind].T
+
+        Xrow = pd.DataFrame(Xrow)
+        if not Xrow.empty:  ## NAN is not empty
+          Xrows[g] = Xrow
+        Yrow = pd.DataFrame(Yrow, index=[2007])
+        if not Yrow.empty: 
+          Yrows[g] = Yrow
+
+    X = Xrows
+    Y = Yrows
+
+    # linear interpolation for missing values in X
+    for nation in X:
+      X[nation].interpolate(method = 'linear', axis = 0,  limit_direction = 'both', inplace = True)
+
+    return X, Y
+
 def preprocess_for_viz(training_set, submit_rows_index):
     """Preprocess the data for visualization.
 
@@ -421,12 +495,12 @@ def preprocess_avg_NANs(training_set, submit_rows_index, years_ahead=1):
         NAN_training_indices_with_indicator = training_rows_with_indicator[training_rows_with_indicator.isnull()].index 
         median_of_others = np.median(all_rows_with_indicator[~all_rows_with_indicator.isnull()])
         
-        # For series we need to replace NANs in, if there's a non-NAN value in the most recent 10 years we take the most recent one
+        # For series we need to replace NANs in, if there's a non-NAN value in the most recent 5 years we take the most recent one
         # Otherwise, we replace the value with the mean from all the time series corresponding to the same indicator
         for i in NAN_training_indices_with_indicator:
             X[X.columns[-1]][i] = median_of_others
             
-            for recent_index in np.arange(2,10):
+            for recent_index in np.arange(2,5):
                 recent_val = X[X.columns[-recent_index]][i]
                 
                 if not(np.isnan(recent_val)):
@@ -541,6 +615,7 @@ def preprocess_for_submission_with_cont_avg_and_lin_interp(training_set, submit_
             interp_row[x] = [max(0,v) for v in func(x, *params)]
             X.loc[ix] = interp_row
         return X
+        
 def preprocess_for_submission_with_global_avg_and_lin_interp(training_set, submit_rows_index):
     """Preprocess for submission. Global averages and linear interpolation
 
@@ -591,3 +666,63 @@ def preprocess_for_submission_with_global_avg_and_lin_interp(training_set, submi
                     break
         
     return X
+
+def pad(DF, df_indicators, bigger_DF, bigger_df_indicators):
+    """
+    Pad dataframe df according to interpolation on sorted grid of values for each indicator
+    df_indicators is pd.Series of indicator column for the dataframe df
+    """
+    df=DF.copy()
+    inds=np.unique(df_indicators)
+    for ind in inds:
+        data = df.loc[df_indicators==ind]
+        sorted_indices = data.mean(axis=1).sort_values().index
+        data = data.loc[sorted_indices].values
+        data_bigger = bigger_DF.loc[bigger_df_indicators==ind].values
+        
+        for row in range(data.shape[0]):
+            #if all values are NANs, set yearly values to the global averages in bigger_DF for each year
+            if np.isnan(data[row,:]).all():
+                data[row,:] = np.nanmean(data_bigger)
+        
+        bad_indexes = np.isnan(data)
+        good_indexes = np.logical_not(bad_indexes)
+        good_data = data[good_indexes]
+                
+        interpolated = np.interp(bad_indexes.nonzero()[0], good_indexes.nonzero()[0], good_data)
+        data_interp=data.copy()
+        data_interp[bad_indexes] = interpolated
+        
+        df.loc[sorted_indices] = data_interp
+    
+    return df
+
+
+def preprocess_pad(training_set, submit_rows_index, years_ahead=1):
+    """
+    preprocessing using 'pad' functionality for each indicator type
+    """
+    train_indicators = np.array(['Achieve universal primary education', 'Combat HIV/AIDS',
+       'Combat malaria and other diseases',
+       'Develop a global partnership for development: Internet Use',
+       'Ensure environmental sustainability', 'Improve maternal health',
+       'Reduce child mortality'])
+    
+    # Select rows for prediction only
+    full_training_rows = training_set.loc[submit_rows_index]
+
+    # Select and rename columns
+    X = full_training_rows.iloc[:, :-3]
+    X = X.rename(lambda x: int(x.split(' ')[0]), axis=1)
+
+    # Split prediction and target
+    Y = X.iloc[:, -1]  # test
+    X = X.iloc[:, :-1*years_ahead]  # training
+    
+    full_df = training_set.loc[np.isin(training_set['Series Name'],train_indicators)].iloc[:,:-3-years_ahead]
+    train_indicators = training_set.loc[X.index]['Series Name']
+    full_df_indicators = training_set.loc[full_df.index]['Series Name']
+    
+    
+    return pad(X, train_indicators, full_df, full_df_indicators), Y
+
