@@ -68,8 +68,12 @@ def arima(X, order = (2,1,0), backup_order = (1,1,0), lookback = 8, forward=1):
                 all_forecasts.append(sq_preds.loc[index])
                 sq_fill += 1
                 continue
-            
-            all_forecasts.append(forecasts[-1])
+            if forecasts[-1] > 1:
+                all_forecasts.append(1)
+            elif forecasts[-1] < 0:
+                all_forecasts.append(0)
+            else:
+                all_forecasts.append(forecasts[-1])
 
     return(all_forecasts)
 

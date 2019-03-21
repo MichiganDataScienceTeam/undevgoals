@@ -517,6 +517,155 @@ def preprocess_avg_NANs(training_set, submit_rows_index, years_ahead=1):
         
     return X, Y
 
+def preprocess_for_submission_with_cont_avg_and_lin_interp(training_set, submit_rows_index):
+    """Preprocess for submission. Continent averages and linear interpolation
+
+    This includes 2007 data since we don't want to throw away information from 2007
+    for prediction in 2008 and 2012.
+
+    X and Y only include rows for which we need to make submissions for the
+    competition. 
+
+    Returns:
+       X (pd.DataFrame): features for prediction
+       Y (pd.Series): targets for prediction
+    """
+    full_training_rows = training_set.loc[submit_rows_index]
+
+    X_with_cont = preprocess_with_interpolation(training_set)
+    X_submit = X_with_cont.loc[submit_rows_index]
+
+    def func(x, a, b, c, d):
+            return np.exp(c*x + d)
+
+    def rename_cols(colname):
+        if colname not in ['Country Name', 'Series Code', 'Series Name', 'continent']:
+            return int(colname.split(' ')[0])
+        else:
+            return colname
+    X = X_submit.rename(rename_cols, axis=1)
+    # global avg imputation for the most recent thing
+    indicators=np.unique(full_training_rows['Series Name'])
+    last_column_train=X.iloc[:, -5]
+    last_column_all=training_set.iloc[:,-4]
+    for ind in indicators:
+        
+        # Find which rows in the training set and full dataset are for the indicator of interest  
+        training_rows_with_indicator = last_column_train.loc[full_training_rows['Series Name'] == ind]
+        all_rows_with_indicator = last_column_all.loc[training_set['Series Name'] == ind]
+        
+        # Find rows in training set that correspond to indicator of interest and have NAN values in most recent time period  
+        NAN_training_indices_with_indicator = training_rows_with_indicator[training_rows_with_indicator.isnull()].index 
+        median_of_others = np.median(all_rows_with_indicator[~all_rows_with_indicator.isnull()])
+        
+        # For series we need to replace NANs in, if there's a non-NAN value in the most recent 10 years we take the most recent one
+        # Otherwise, we replace the value with the mean from all the time series corresponding to the same indicator
+        for i in NAN_training_indices_with_indicator:
+            X[X.columns[-5]][i] = median_of_others
+            
+            for recent_index in np.arange(6,14):
+                recent_val = X[X.columns[-recent_index]][i]
+                
+                if not(np.isnan(recent_val)):
+                    X[X.columns[-5]][i]=recent_val
+                    break
+
+    with open("ind_yr_cont_avgs.json", "r") as content:
+        cont_avgs = json.load(content)
+
+    def impute_indyrcontavg(r, ind, cont):
+        if pd.isna(r['value']):
+            r['value'] = cont_avgs[str((ind, cont, r.name))]
+            return(r)
+        else:
+            return(r)
+
+    for ix,row in X.iterrows():
+        ind = row['Series Code']
+        cont = row['continent']
+        df = row.to_frame(0)
+        df.columns = ['value']
+        df = df.apply(impute_indyrcontavg, axis = 1, args=(ind,cont))
+        X.loc[ix] = df['value']
+    # we only want the time series data for each row
+    X = X.iloc[:, :-4]
+
+    # Split prediction and target
+    # Y = X.iloc[:, -1]  # 2007
+    # X = X.iloc[:, :-1*years_ahead]  # 1972:2006 (if years_ahead==1)
+    # Now do the linear interpolation and extrapolation part
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        for ix, row in X.iterrows():
+            # First interpolate
+            interp_row = row.interpolate(method = 'linear', )
+            # Initial parameter guess, just to kick off the optimization
+            guess = (0, 0, 0, 0)
+            # Create copy of data to remove NaNs for curve fitting
+            fit_row = interp_row.dropna()
+            # Fit on non NaNs
+            x = fit_row.index.astype(float).values
+            y = fit_row.values
+            # Curve fit series and get curve parameters
+            curve_out = curve_fit(func, x, y, guess)
+            # Store optimized parameters
+            params = curve_out[0]
+            # Impute missing values
+            x = interp_row[pd.isna(interp_row)].index.astype(float).values
+            interp_row[x] = [max(0,v) for v in func(x, *params)]
+            X.loc[ix] = interp_row
+        return X
+        
+def preprocess_for_submission_with_global_avg_and_lin_interp(training_set, submit_rows_index):
+    """Preprocess for submission. Global averages and linear interpolation
+
+    This includes 2007 data since we don't want to throw away information from 2007
+    for prediction in 2008 and 2012.
+
+    X and Y only include rows for which we need to make submissions for the
+    competition. 
+
+    Returns:
+       X (pd.DataFrame): features for prediction
+       Y (pd.Series): targets for prediction
+    """
+    # Select rows for prediction only
+    full_training_rows = training_set.loc[submit_rows_index]
+
+    # Select and rename columns
+    X = full_training_rows.iloc[:, :-3]
+    X = X.rename(lambda x: int(x.split(' ')[0]), axis=1)
+
+    # Split prediction and target
+    # Y = X.iloc[:, -1]  # 2007
+    # X = X.iloc[:, :-1*years_ahead]  # 1972:2006
+    
+    indicators=np.unique(full_training_rows['Series Name'])
+    last_column_train=X.iloc[:, -1]
+    last_column_all=training_set.iloc[:,-5]
+    for ind in indicators:
+        
+        # Find which rows in the training set and full dataset are for the indicator of interest  
+        training_rows_with_indicator = last_column_train.loc[full_training_rows['Series Name'] == ind]
+        all_rows_with_indicator = last_column_all.loc[training_set['Series Name'] == ind]
+        
+        # Find rows in training set that correspond to indicator of interest and have NAN values in most recent time period  
+        NAN_training_indices_with_indicator = training_rows_with_indicator[training_rows_with_indicator.isnull()].index 
+        median_of_others = np.median(all_rows_with_indicator[~all_rows_with_indicator.isnull()])
+        
+        # For series we need to replace NANs in, if there's a non-NAN value in the most recent 10 years we take the most recent one
+        # Otherwise, we replace the value with the mean from all the time series corresponding to the same indicator
+        for i in NAN_training_indices_with_indicator:
+            X[X.columns[-1]][i] = median_of_others
+            
+            for recent_index in np.arange(2,10):
+                recent_val = X[X.columns[-recent_index]][i]
+                
+                if not(np.isnan(recent_val)):
+                    X[X.columns[-1]][i]=recent_val
+                    break
+        
+    return X
 
 def pad(DF, df_indicators, bigger_DF, bigger_df_indicators):
     """
@@ -576,3 +725,4 @@ def preprocess_pad(training_set, submit_rows_index, years_ahead=1):
     
     
     return pad(X, train_indicators, full_df, full_df_indicators), Y
+
