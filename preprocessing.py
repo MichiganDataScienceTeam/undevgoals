@@ -615,7 +615,7 @@ def preprocess_for_submission_with_cont_avg_and_lin_interp(training_set, submit_
             interp_row[x] = [max(0,v) for v in func(x, *params)]
             X.loc[ix] = interp_row
         return X
-        
+
 def preprocess_for_submission_with_global_avg_and_lin_interp(training_set, submit_rows_index):
     """Preprocess for submission. Global averages and linear interpolation
 
@@ -664,8 +664,16 @@ def preprocess_for_submission_with_global_avg_and_lin_interp(training_set, submi
                 if not(np.isnan(recent_val)):
                     X[X.columns[-1]][i]=recent_val
                     break
+
+        for index, row in X.iterrows():
+            # Fill in gaps with linear interpolation
+            row_interp = row.interpolate(
+                method = 'linear', limit = 50,
+                limit_direction = 'backward')
+            X.loc[index]=row_interp.values
         
     return X
+
 
 def pad(DF, df_indicators, bigger_DF, bigger_df_indicators):
     """

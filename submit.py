@@ -27,6 +27,15 @@ def main():
 			five_yr_output = pd.Series(arima_predictions_with_cont_avg_lin_interp_5, index = X_submit.index, name = '2012 [YR2012]')
 			out_df = pd.concat([one_yr_output, five_yr_output], axis=1)
 			out_df.to_csv('SubmissionRows.csv')
+		elif sys.argv[1] == 'arima_and_var':
+			data = dataset.UNDevGoalsDataset()
+			X_submit = data.preprocess(pp_fn = preprocess_for_submission_with_global_avg_and_lin_interp)
+			arima_predictions_with_global_avg_lin_interp = data.predictions(model_name=arima_and_var, preprocessed_data=X_submit, var_lookback = 6, forward = 1, do_arima = False)
+			arima_predictions_with_global_avg_lin_interp_5 = data.predictions(model_name=arima_and_var, preprocessed_data=X_submit, arima_lookback = 4,  forward=5, do_arima = True)
+			one_yr_output = pd.Series(arima_predictions_with_global_avg_lin_interp, index = X_submit.index, name = '2008 [YR2008]')
+			five_yr_output = pd.Series(arima_predictions_with_global_avg_lin_interp_5, index = X_submit.index, name = '2012 [YR2012]')
+			out_df = pd.concat([one_yr_output, five_yr_output], axis=1)
+			out_df.to_csv('SubmissionRows.csv')
 		else:
 			raise Exception("You have to submit a valid type of submittable as a command line argument")
 

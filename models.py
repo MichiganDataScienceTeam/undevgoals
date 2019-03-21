@@ -69,9 +69,17 @@ def arima(X, order = (2,1,0), backup_order = (1,1,0), lookback = 8, forward=1):
                 sq_fill += 1
                 continue
             if forecasts[-1] > 1:
-                all_forecasts.append(1)
+                if forward > 1:
+                    one_yr_fcst = results.forecast(steps=1)[0][-1]
+                    all_forecasts.append((one_yr_fcst + forecasts[-1])/2)
+                else:
+                    all_forecasts.append(1)
             elif forecasts[-1] < 0:
-                all_forecasts.append(0)
+                if forward > 1:
+                    one_yr_fcst = results.forecast(steps=1)[0][-1]
+                    all_forecasts.append((one_yr_fcst + forecasts[-1])/2)
+                else:
+                    all_forecasts.append(0)
             else:
                 all_forecasts.append(forecasts[-1])
 
@@ -82,9 +90,21 @@ def var(X, lookback = 4, forward=1):
     Prediction using VAR model
     """
     dat = X.iloc[:,-lookback:].values.T
-    dat += 1e-10*np.random.rand(dat.shape[0],dat.shape[1])
+    dat += 1e-3*np.random.rand(dat.shape[0],dat.shape[1])
     model = VAR(dat)
     results = model.fit()
     lag_order = results.k_ar
 
     return results.forecast(dat[-lag_order:], forward)[-1]
+
+def arima_and_var(X, order = (2,1,0), backup_order = (1,1,0), arima_lookback = 4, var_lookback = 6, do_arima=False, forward = 5):
+    """
+    This model will do arima if the arima argument is set to True or VAR if it is set to False
+    """
+    if do_arima:
+        out = arima(X, order = order, backup_order = backup_order, lookback = arima_lookback, forward=forward)
+    else:
+        out = var(X, lookback = var_lookback, forward = forward)
+    return(out)
+
+
